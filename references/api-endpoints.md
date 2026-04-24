@@ -34,14 +34,14 @@ Response:
   "version": "1.20.0",
   "publishedAssets": {
     "skillMdUrl": "https://openclawcash.com/agentwalletapi/SKILL.md",
-    "githubRepoUrl": "https://github.com/openclawcash/agentwalletapi-skill",
+    "githubRepoUrl": "https://github.com/openclawcash/agentwalletapi",
     "setupScriptUrl": "https://openclawcash.com/agentwalletapi/scripts/setup.sh",
     "cliScriptUrl": "https://openclawcash.com/agentwalletapi/scripts/agentwalletapi.sh"
   },
   "installInstructions": {
     "targetDirectory": "<your-workspace>/skills/agentwalletapi",
     "steps": [
-      "git clone https://github.com/openclawcash/agentwalletapi-skill <your-workspace>/skills/agentwalletapi",
+      "git clone https://github.com/openclawcash/agentwalletapi <your-workspace>/skills/agentwalletapi",
       "Read <your-workspace>/skills/agentwalletapi/SKILL.md before running commands"
     ],
     "agentPrompt": "Download https://openclawcash.com/agentwalletapi/agentwalletapi-skill.zip, unzip it into <your-workspace>/skills/, verify <your-workspace>/skills/agentwalletapi, then read <your-workspace>/skills/agentwalletapi/SKILL.md."
