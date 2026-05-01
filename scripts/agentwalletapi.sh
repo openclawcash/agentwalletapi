@@ -44,7 +44,7 @@
 #   polymarket-orders <walletSelector> [status] [limit] [cursor]
 #   polymarket-activity <walletSelector> [limit] [cursor]
 #   polymarket-positions <walletSelector> [limit]
-#   polymarket-redeem <walletSelector> [tokenId|all] [limit] [--yes]
+#   polymarket-redeem <walletSelector> [tokenId|all] [limit] [signatureType] [--yes]
 #   polymarket-cancel <walletSelector> <orderId> [--yes]
 
 SKILL_DIR="$(cd "$(dirname "$0")/.." && pwd)"
@@ -1035,8 +1035,9 @@ case "$COMMAND" in
         WALLET_SELECTOR="$2"
         TOKEN_OR_ALL="$3"
         LIMIT="$4"
+        SIGNATURE_TYPE="$5"
         if [ -z "$WALLET_SELECTOR" ]; then
-            echo "Usage: agentwalletapi.sh polymarket-redeem <walletSelector> [tokenId|all] [limit] [--yes]"
+            echo "Usage: agentwalletapi.sh polymarket-redeem <walletSelector> [tokenId|all] [limit] [signatureType] [--yes]"
             exit 1
         fi
         BODY="{"
@@ -1049,6 +1050,16 @@ case "$COMMAND" in
         if [ -n "$LIMIT" ]; then
             require_uint "limit" "$LIMIT"
             BODY="$BODY, \"limit\": $LIMIT"
+        fi
+        if [ -n "$SIGNATURE_TYPE" ]; then
+            case "$SIGNATURE_TYPE" in
+                0|1|2) ;;
+                *)
+                    echo "signatureType must be 0, 1, or 2 (defensive assertion: 0 = direct EOA, 1 = proxy, 2 = Gnosis Safe)"
+                    exit 1
+                    ;;
+            esac
+            BODY="$BODY, \"signatureType\": $SIGNATURE_TYPE"
         fi
         BODY="$BODY}"
         curl -s -X POST \
@@ -1121,7 +1132,7 @@ case "$COMMAND" in
         echo "  polymarket-orders <walletSelector> [status] [limit] [cursor]"
         echo "  polymarket-activity <walletSelector> [limit] [cursor]"
         echo "  polymarket-positions <walletSelector> [limit]"
-        echo "  polymarket-redeem <walletSelector> [tokenId|all] [limit] [--yes]"
+        echo "  polymarket-redeem <walletSelector> [tokenId|all] [limit] [signatureType] [--yes]"
         echo "  polymarket-cancel <walletSelector> <orderId> [--yes]"
         echo ""
         echo "Examples:"
@@ -1151,6 +1162,7 @@ case "$COMMAND" in
         echo "  agentwalletapi.sh polymarket-orders 2 OPEN 50"
         echo "  agentwalletapi.sh polymarket-redeem 2 all 100 --yes"
         echo "  agentwalletapi.sh polymarket-redeem 2 1234567890 100 --yes"
+        echo "  agentwalletapi.sh polymarket-redeem 2 1234567890 100 0 --yes  # assert direct on-chain path"
         echo "  agentwalletapi.sh polymarket-cancel 2 0xorderid --yes"
         ;;
 esac

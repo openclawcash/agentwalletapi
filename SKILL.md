@@ -5,7 +5,7 @@ license: Proprietary
 compatibility: Requires network access to https://openclawcash.com
 metadata:
   author: agentwalletapi
-  version: "1.20.1"
+  version: "1.21.0"
   required_env_vars:
     - AGENTWALLETAPI_KEY
   optional_env_vars:
@@ -176,11 +176,11 @@ Content-Type: application/json
   - Authenticate with `X-Agent-Key`
   - Used for autonomous agent execution (wallets list/create/import, transactions, balance, transfer, swap, quote, approve, checkout escrow lifecycle, and polymarket venue operations)
 - **Public install metadata API (no auth):** `GET /api/public/agentwalletapi/skill/latest`
-  - Returns latest skill version, GitHub repo URL, and install instructions.
+  - Returns latest skill version, zip URLs, and install instructions.
 
 ## Workflow
 
-1. `GET /api/public/agentwalletapi/skill/latest` - Fetch latest skill version, GitHub repo URL, and install instructions (no auth)
+1. `GET /api/public/agentwalletapi/skill/latest` - Fetch latest skill version, zip URLs, and install instructions (no auth)
 2. `GET /api/agent/wallets` - Discover available wallets (id, label, address, network, chain). Optional `?includeBalances=true` adds native `balance` + `nativeSymbol`
 3. `GET /api/agent/wallet?walletId=...` or `?walletLabel=...` or `?walletAddress=...` - Fetch one wallet with native/token balances
 4. Optional wallet lifecycle actions:
@@ -224,7 +224,7 @@ Checkout timing fields for `POST /api/agent/checkout/payreq`:
    - `GET /api/agent/venues/polymarket/orders` - List open orders
    - `POST /api/agent/venues/polymarket/orders/cancel` - Cancel an order
    - `GET /api/agent/venues/polymarket/redeemable` - List currently redeemable positions and tokenId candidates
-   - `POST /api/agent/venues/polymarket/redeem` - Redeem one position by `tokenId` or redeem all redeemable positions (all-mode may require multiple calls until `hasMoreRedeemable=false`)
+   - `POST /api/agent/venues/polymarket/redeem` - Redeem one position by `tokenId` or all redeemable positions; signing path is auto-selected by wallet `signatureType` (0 = direct on-chain EOA, 1 / 2 = gasless via relayer); pass optional `signatureType` to defensively assert; response includes `signingPath`. All-mode may require multiple calls until `hasMoreRedeemable=false`
    - `POST /api/agent/venues/polymarket/unlink` - Clear stored Polymarket integration config for a wallet
    - `GET /api/agent/venues/polymarket/activity` - List trade activity
    - `GET /api/agent/venues/polymarket/positions` - List open positions (open-market filtered, includes PnL fields)
@@ -266,7 +266,7 @@ Example:
 
 | Endpoint | Method | Auth | Purpose |
 |---|---|---|---|
-| `/api/public/agentwalletapi/skill/latest` | GET | No | Get latest skill version + GitHub repo/install instructions |
+| `/api/public/agentwalletapi/skill/latest` | GET | No | Get latest skill version + zip/install instructions |
 | `/api/agent/wallets` | GET | Yes | List wallets (discovery; optional `includeBalances=true` for native balances) |
 | `/api/agent/wallet` | GET | Yes | Get one wallet detail with native/token balances |
 | `/api/agent/wallets/create` | POST | Yes | Create a new API-key-managed wallet |
