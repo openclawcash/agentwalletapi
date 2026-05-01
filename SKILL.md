@@ -176,11 +176,11 @@ Content-Type: application/json
   - Authenticate with `X-Agent-Key`
   - Used for autonomous agent execution (wallets list/create/import, transactions, balance, transfer, swap, quote, approve, checkout escrow lifecycle, and polymarket venue operations)
 - **Public install metadata API (no auth):** `GET /api/public/agentwalletapi/skill/latest`
-  - Returns latest skill version, zip URLs, and install instructions.
+  - Returns latest skill version, GitHub repo URL, and install instructions.
 
 ## Workflow
 
-1. `GET /api/public/agentwalletapi/skill/latest` - Fetch latest skill version, zip URLs, and install instructions (no auth)
+1. `GET /api/public/agentwalletapi/skill/latest` - Fetch latest skill version, GitHub repo URL, and install instructions (no auth)
 2. `GET /api/agent/wallets` - Discover available wallets (id, label, address, network, chain). Optional `?includeBalances=true` adds native `balance` + `nativeSymbol`
 3. `GET /api/agent/wallet?walletId=...` or `?walletLabel=...` or `?walletAddress=...` - Fetch one wallet with native/token balances
 4. Optional wallet lifecycle actions:
@@ -266,7 +266,7 @@ Example:
 
 | Endpoint | Method | Auth | Purpose |
 |---|---|---|---|
-| `/api/public/agentwalletapi/skill/latest` | GET | No | Get latest skill version + zip/install instructions |
+| `/api/public/agentwalletapi/skill/latest` | GET | No | Get latest skill version + GitHub repo URL + install instructions |
 | `/api/agent/wallets` | GET | Yes | List wallets (discovery; optional `includeBalances=true` for native balances) |
 | `/api/agent/wallet` | GET | Yes | Get one wallet detail with native/token balances |
 | `/api/agent/wallets/create` | POST | Yes | Create a new API-key-managed wallet |
