@@ -5,7 +5,7 @@ license: Proprietary
 compatibility: Requires network access to https://openclawcash.com
 metadata:
   author: agentwalletapi
-  version: "1.25.0"
+  version: "1.26.0"
   required_env_vars:
     - AGENTWALLETAPI_KEY
   optional_env_vars:
@@ -18,7 +18,7 @@ metadata:
 
 # OpenclawCash Agent API
 
-Interact with OpenclawCash-managed wallets to send native assets and tokens, check balances, execute DEX swaps, and manage Polymarket account, orders, and redeem flows via Polygon wallets.
+Interact with OpenclawCash-managed wallets to send native assets and tokens, check balances, execute DEX swaps, manage Polymarket account, orders, and redeem flows via Polygon wallets, and operate YieldWolf Casino accounts via Solana wallets.
 This skill may also be referred to as `openclawcash`.
 
 ## Requirements
@@ -233,7 +233,14 @@ Checkout timing fields for `POST /api/agent/checkout/payreq`:
    - `POST /api/agent/venues/polymarket/unlink` - Clear stored Polymarket integration config for a wallet
    - `GET /api/agent/venues/polymarket/activity` - List trade activity
    - `GET /api/agent/venues/polymarket/positions` - List open positions (open-market filtered, includes PnL fields)
-14. Use returned `txHash` / `orderId` values to confirm execution and lifecycle status
+14. Optional YieldWolf Casino venue flow (Solana wallet binds to a casino account; lane is fixed at link time):
+   - `POST /api/agent/venues/yieldwolf-casino/link` { walletId, lane: "real" | "test" } - Bind a Solana wallet to a casino account. Response carries `proxy_base` and a runtime `instructions` payload with per-flow guidance (fund, balance, catalog, play_standard, play_kuhn, history, withdraw). The raw casino key is intentionally not returned to the agent. The linked wallet is the only allowed withdrawal destination.
+   - `POST /api/agent/venues/yieldwolf-casino/unlink` { walletId } - Clear the binding. To switch lanes, unlink and re-link.
+   - `GET  /api/agent/venues/yieldwolf-casino/proxy/<upstream_path>?walletId=...` - Read passthrough to YieldWolf's gateway. Common reads: `agents/me/balance`, `transactions/history`, `games`, `games/info`.
+   - `POST /api/agent/venues/yieldwolf-casino/proxy/<upstream_path>?walletId=...` - Write passthrough. Common writes: `games/play` (game_type one of `dice`, `wheel`, `slots`, `crash`), `transactions/withdraw`, `arena/kuhn/*` for PvP poker. Pass `X-Idempotency-Key` so retries do not double-submit.
+   - All gameplay paths and request shapes are partner-owned at https://yieldwolf.finance/SKILL.md. Routing through OpenclawCash is required so wallet ownership, venue scope, and audit trail are enforced. Responsible-play caps recommended in the link response: per-bet <= 2% of balance, stop-loss at -10% session drawdown, reserve >= 20% of balance.
+   - MCP helpers: `yieldwolf_casino_link`, `yieldwolf_casino_unlink`, and `yieldwolf_casino_call` (generic dispatcher for the proxy).
+15. Use returned `txHash` / `orderId` values to confirm execution and lifecycle status
 
 ### Approval Handling For Agents
 
@@ -316,6 +323,10 @@ Example:
 | `/api/agent/venues/polymarket/unlink` | POST | Yes | Clear Polymarket integration for wallet |
 | `/api/agent/venues/polymarket/activity` | GET | Yes | List Polymarket trade activity |
 | `/api/agent/venues/polymarket/positions` | GET | Yes | List Polymarket open positions (open-market filtered with PnL fields) |
+| `/api/agent/venues/yieldwolf-casino/link` | POST | Yes | Bind a Solana wallet to a YieldWolf Casino account. Returns `proxy_base` + runtime `instructions`. No raw casino key returned to the agent |
+| `/api/agent/venues/yieldwolf-casino/unlink` | POST | Yes | Clear the YieldWolf Casino binding for a wallet |
+| `/api/agent/venues/yieldwolf-casino/proxy/<upstream>` | GET | Yes | Read passthrough to YieldWolf's gateway (e.g. `agents/me/balance`, `transactions/history`) |
+| `/api/agent/venues/yieldwolf-casino/proxy/<upstream>` | POST | Yes | Write passthrough to YieldWolf's gateway (e.g. `games/play`, `transactions/withdraw`); supports `X-Idempotency-Key` |
 
 ## Agent Wallet Create/Import (Agent API)
 
