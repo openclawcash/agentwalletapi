@@ -20,6 +20,7 @@
 
 - **Agent API (`/api/agent/*`)**: authenticate with `X-Agent-Key`.
 - **Public install metadata API (`/api/public/agentwalletapi/skill/latest`)**: no auth required.
+- **Public token list API (`/api/public/tokenlist`)**: no auth required. Token Lists v1 document covering every supported chain.
 
 ## Skill Install Metadata (Public, No Auth)
 
@@ -49,6 +50,37 @@ Response:
     ],
     "agentPrompt": "Download https://openclawcash.com/agentwalletapi/agentwalletapi-skill.zip, unzip it into <your-workspace>/skills/, verify <your-workspace>/skills/agentwalletapi, then read <your-workspace>/skills/agentwalletapi/SKILL.md."
   }
+}
+```
+
+## Public Token List (Public, No Auth)
+
+```
+GET /api/public/tokenlist
+GET /api/public/tokenlist?chainId=8453
+GET /api/public/tokenlist?extended=false
+```
+
+Token Lists v1 document (https://uniswap.org/tokenlist.schema.json). Covers every chain OpenClawCash supports across EVM and Solana.
+
+- **Default `?extended=true`**: curated OpenClawCash tokens merged with Uniswap default list (EVM) and Jupiter verified list (Solana). Curated entries win on (chainId, address) dedupe so logos and names are consistent. ~5000+ tokens.
+- **`?extended=false`**: curated only (~67 tokens). Zero external dependencies, smaller payload, longer cache.
+- **`?chainId=<num>`**: scope to one chain. EVM uses EIP-155 (1=Mainnet, 137=Polygon, 8453=Base, 11155111=Sepolia). Solana uses Solana Labs convention (101=mainnet).
+
+CORS-allowed for browser consumers. `Cache-Control: public, max-age=60` (extended) or `300` (curated).
+
+Response shape:
+```json
+{
+  "name": "OpenClawCash Tokens (extended via Uniswap + Jupiter)",
+  "timestamp": "2026-05-03T12:00:00.000Z",
+  "version": { "major": 1, "minor": 0, "patch": 0 },
+  "keywords": ["openclawcash", "managed-wallets", "agent-wallet", "extended", "uniswap", "jupiter"],
+  "tokens": [
+    { "chainId": 1, "address": "0xA0b8...eB48", "name": "USD Coin", "symbol": "USDC", "decimals": 6, "logoURI": "https://..." },
+    { "chainId": 8453, "address": "0x8335...2913", "name": "USD Coin", "symbol": "USDC", "decimals": 6, "logoURI": "https://..." },
+    { "chainId": 101, "address": "EPjFWdd5...zybapC8G4wEGGkZwyTDt1v", "name": "USD Coin", "symbol": "USDC", "decimals": 6, "logoURI": "https://..." }
+  ]
 }
 ```
 
@@ -239,7 +271,7 @@ Response:
 
 Notes:
 - API key must have wallet import enabled (`allowWalletImport`).
-- Supported networks: `mainnet`, `polygon-mainnet`, `solana-mainnet`.
+- Supported networks: `mainnet`, `polygon-mainnet`, `base-mainnet`, `solana-mainnet`.
 - Endpoint is rate-limited per API key; on limit exceeded returns `429` + `Retry-After`.
 
 ## Get Policies
@@ -357,6 +389,17 @@ Optional:
 ```
 GET /api/agent/transactions?walletId=2&chain=evm
 ```
+
+EVM bucket model: scope to a single EVM chain or merge across every EVM chain in the wallet's bucket:
+```
+GET /api/agent/transactions?walletId=2&network=base-mainnet
+GET /api/agent/transactions?walletId=2&network=all
+```
+- `network=<id>`: returns activity on that specific EVM chain (mainnet, polygon-mainnet, base-mainnet, sepolia).
+- `network=all`: merges activity across every supported EVM chain into one history.
+- Omitted: returns activity on the wallet's default chain.
+- Each row's `data.network` indicates which chain it ran on.
+- Solana wallets are pinned to their cluster; the field is rejected if it doesn't match.
 
 Response:
 ```json
@@ -1162,20 +1205,21 @@ Notes:
 
 - **mainnet**: Ethereum Mainnet (real ETH, all tokens)
 - **polygon-mainnet**: Polygon PoS Mainnet (real POL + ERC-20 on Polygon)
+- **base-mainnet**: Base Mainnet, Coinbase L2 (real ETH + ERC-20 on Base; native USDC, WETH, DAI, cbETH, USDbC supported)
 - **sepolia**: Sepolia Testnet (test ETH, limited token selection: ETH, USDC, WETH, LINK)
 - **solana-mainnet**: Solana Mainnet (real SOL + SPL tokens)
 - **solana-devnet**: Solana Devnet (dev SOL + test SPL tokens)
 
-Network is fixed at wallet creation and cannot be changed.
+EVM wallets are buckets: a wallet's `network` is its **default/home chain**, not a binding. The same wallet address is valid on every EVM chain. Pass an optional `network` field on `/api/agent/transfer`, `/api/agent/swap`, and `/api/agent/approve` to operate the wallet on a non-default EVM chain. Omit `network` to use the wallet's default. Solana wallets remain pinned to their cluster.
 
 ## Important Notes
 
-- EVM token transfers require ETH in the wallet for gas fees
+- EVM token transfers require native gas (ETH on mainnet/sepolia/base-mainnet; POL on polygon-mainnet) on the operating chain
 - Solana token transfers require SOL in the wallet for transaction fees
 - Native SOL transfers account for network fee and may return adjusted transfer values in response
-- Swap supports EVM (Uniswap) and Solana mainnet (Jupiter); Quote supports EVM and Solana mainnet; Approve is EVM-only
-- Polymarket endpoints require a configured `polygon-mainnet` EVM wallet
+- Swap supports EVM (Uniswap-v2-compatible router on mainnet/polygon/base/sepolia) and Solana mainnet (Jupiter); Quote supports EVM and Solana mainnet; Approve is EVM-only
+- Polymarket on-chain execution targets `polygon-mainnet` under the hood; any EVM-home wallet (mainnet, polygon-mainnet, base-mainnet) can be linked to Polymarket
 - All Polymarket order/read/redeem endpoints require exactly one wallet selector (`walletId` or `walletAddress`)
-- Platform fee is deducted from the token amount (not ETH), consistent with ETH transfers
+- Platform fee is deducted from the token amount (not native gas), consistent with native transfers
 - For transfer, use `amountDisplay` for simplicity (human-readable), use `valueBaseUnits` when you need precise base-unit control (legacy `amount`/`value` aliases are still accepted)
-- Optional `chain` guard is supported on agent endpoints; mismatches return `400` with `code: "chain_mismatch"`.
+- Optional `chain` guard is supported on agent endpoints; mismatches return `400` with `code: "chain_mismatch"`. Optional `network` override is supported on EVM write endpoints; unknown or non-EVM networks for an EVM wallet return `400` with `code: "network_mismatch"`.

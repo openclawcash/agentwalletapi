@@ -5,7 +5,7 @@ license: Proprietary
 compatibility: Requires network access to https://openclawcash.com
 metadata:
   author: agentwalletapi
-  version: "1.21.0"
+  version: "1.25.0"
   required_env_vars:
     - AGENTWALLETAPI_KEY
   optional_env_vars:
@@ -181,17 +181,22 @@ Content-Type: application/json
 ## Workflow
 
 1. `GET /api/public/agentwalletapi/skill/latest` - Fetch latest skill version, GitHub repo URL, and install instructions (no auth)
+1a. `GET /api/public/tokenlist` - Token Lists v1 document covering every supported chain. Default `?extended=true` merges curated + Uniswap (EVM) + Jupiter (Solana). Pass `?extended=false` for curated only, `?chainId=<num>` to scope to one chain. No auth.
 2. `GET /api/agent/wallets` - Discover available wallets (id, label, address, network, chain). Optional `?includeBalances=true` adds native `balance` + `nativeSymbol`
 3. `GET /api/agent/wallet?walletId=...` or `?walletLabel=...` or `?walletAddress=...` - Fetch one wallet with native/token balances
 4. Optional wallet lifecycle actions:
    - `POST /api/agent/wallets/create` - Create a new wallet under API-key policy controls
-   - `POST /api/agent/wallets/import` - Import a `mainnet`, `polygon-mainnet`, or `solana-mainnet` wallet under API-key policy controls
-5. `GET /api/agent/transactions?walletId=...` (or `walletLabel`/`walletAddress`) - Read merged wallet transaction history (on-chain + app-recorded)
+   - `POST /api/agent/wallets/import` - Import a `mainnet`, `polygon-mainnet`, `base-mainnet`, or `solana-mainnet` wallet under API-key policy controls
+5. `GET /api/agent/transactions?walletId=...` (or `walletLabel`/`walletAddress`) - Read merged wallet transaction history (on-chain + app-recorded). EVM wallets accept optional `&network=<id>` to scope to a single EVM chain or `&network=all` to merge across the bucket. Each row carries `data.network`.
 6. `GET /api/agent/supported-tokens?network=...` or `?chain=evm|solana` - Get recommended common, well-known token list + guidance (requires `X-Agent-Key`)
 7. `POST /api/agent/token-balance` - Check wallet balances (native + token balances; specific token by symbol/address supported)
 8. `POST /api/agent/quote` - Get a swap quote before execution on Uniswap (EVM) or Jupiter (Solana mainnet). `amountIn` is base-units integer string.
-9. `POST /api/agent/swap` - Execute token swap on Uniswap (EVM) or Jupiter (Solana mainnet). `amountIn` is base-units integer string.
-10. `POST /api/agent/transfer` - Send native coin or token on the wallet's chain (optional `chain` guard). Do not use this for checkout escrow funding.
+9. `POST /api/agent/swap` - Execute token swap on Uniswap (EVM) or Jupiter (Solana mainnet). `amountIn` is base-units integer string. EVM wallets accept optional `network` (e.g. `"base-mainnet"`) to swap on a non-default EVM chain.
+10. `POST /api/agent/transfer` - Send native coin or token. Optional `chain` guard. EVM wallets accept optional `network` (e.g. `"base-mainnet"`) to transfer on a non-default EVM chain. Omit `network` to use the wallet's default. Do not use this for checkout escrow funding.
+10a. Cross-chain bridge (LiFi-routed; aggregator picks the underlying bridge such as Across, Stargate, etc., and announces it as `bridgeName` in the response):
+   - `POST /api/agent/bridge/quote` - Quote a transfer between EVM chains (or EVM<->Solana for quote; Solana source-side execute is gated to a follow-up). `fromNetwork`, `fromToken`, `toNetwork`, `toToken`, `amountIn` (base units). Returns `quoteId`, `provider`, `bridgeName`, `amountOut`, `amountOutMin`, fee details, and `expiresAt` (~60s TTL).
+   - `POST /api/agent/bridge/execute` - Execute a previously quoted bridge. Requires `Idempotency-Key` header. Returns `sourceTxHash`, `bridgeTxId`, and platform fee tx hash.
+   - `GET /api/agent/bridge/status?bridgeTxId=...` - Look up status. States: `submitted`, `source_confirmed`, `destination_confirmed`, `completed`, `failed`.
 11. `GET /api/agent/user-tag` and `PUT /api/agent/user-tag` - Read/set the global checkout user tag (set is one-time / immutable once configured)
 12. Optional checkout flow (escrow by global user tag):
    - MCP default: `checkout_fund` (tries `quick-pay`, falls back to `swap-and-pay` when needed)
@@ -214,7 +219,7 @@ Checkout timing fields for `POST /api/agent/checkout/payreq`:
 - `autoReleaseSeconds`: when funded escrow can auto-release if no dispute exists.
 - `disputeWindowSeconds`: how long dispute can be opened after auto-release point.
 - Constraints: all three must be at least `3600` seconds, and `disputeWindowSeconds <= autoReleaseSeconds`.
-13. Optional Polymarket venue flow (polygon-mainnet wallets only):
+13. Optional Polymarket venue flow (any EVM wallet linked to Polymarket; on-chain execution targets polygon-mainnet under the hood):
    - Prerequisite: user configures Polymarket in dashboard Venues settings for that wallet
    - `GET /api/agent/venues/polymarket/market/resolve` resolves `marketUrl`/`slug` + human-readable `outcome` to the exact `tokenId` needed for order tools
    - MCP helper: `polymarket_market_resolve` calls the same agent endpoint
@@ -267,10 +272,11 @@ Example:
 | Endpoint | Method | Auth | Purpose |
 |---|---|---|---|
 | `/api/public/agentwalletapi/skill/latest` | GET | No | Get latest skill version + GitHub repo URL + install instructions |
+| `/api/public/tokenlist` | GET | No | Token Lists v1 document. `?extended=true` (default) merges curated + Uniswap + Jupiter. `?chainId=<num>` scopes to one chain |
 | `/api/agent/wallets` | GET | Yes | List wallets (discovery; optional `includeBalances=true` for native balances) |
 | `/api/agent/wallet` | GET | Yes | Get one wallet detail with native/token balances |
 | `/api/agent/wallets/create` | POST | Yes | Create a new API-key-managed wallet |
-| `/api/agent/wallets/import` | POST | Yes | Import a mainnet/polygon-mainnet/solana-mainnet wallet via API key |
+| `/api/agent/wallets/import` | POST | Yes | Import a mainnet/polygon-mainnet/base-mainnet/solana-mainnet wallet via API key |
 | `/api/agent/transactions` | GET | Yes | List per-wallet transaction history |
 | `/api/agent/transfer` | POST | Yes | Send native/token transfers (EVM + Solana). Not the checkout escrow funding path. |
 | `/api/agent/swap` | POST | Yes | Execute DEX swap (Uniswap on EVM, Jupiter on Solana mainnet) |
@@ -280,6 +286,9 @@ Example:
 | `/api/agent/user-tag` | GET | Yes | Read the global checkout user tag for the API key owner |
 | `/api/agent/user-tag` | PUT | Yes | Set the global checkout user tag once (immutable after set) |
 | `/api/agent/approve` | POST | Yes | Approve spender for ERC-20 token (EVM only) |
+| `/api/agent/bridge/quote` | POST | Yes | Quote cross-chain bridge transfer (LiFi-routed). Returns `quoteId`, `provider`, `bridgeName`, fee breakdown, `expiresAt` (~60s) |
+| `/api/agent/bridge/execute` | POST | Yes | Execute previously quoted bridge. Requires `Idempotency-Key` header |
+| `/api/agent/bridge/status` | GET | Yes | Look up bridge tx status by `bridgeTxId` |
 | `/api/agent/checkout/payreq` | POST | Yes | Create checkout pay request + escrow |
 | `/api/agent/checkout/payreq/:id` | GET | Yes | Read checkout pay request |
 | `/api/agent/checkout/escrows/:id/funding-confirm` | POST | Yes | Confirm escrow funding tx |
@@ -321,7 +330,7 @@ Behavior notes:
   - `allowWalletCreation` for create
   - `allowWalletImport` for import
 - Both are rate-limited per API key. Exceeding the limit returns `429` with `Retry-After`.
-- Agent import supports `mainnet`, `polygon-mainnet`, and `solana-mainnet`.
+- Agent import supports `mainnet`, `polygon-mainnet`, `base-mainnet`, and `solana-mainnet`.
 - Agent wallet create requires:
   - `exportPassphrase` (minimum 12 characters)
   - `exportPassphraseStorageType`
@@ -338,9 +347,21 @@ Behavior notes:
     - `confirmExportPassphraseSaved: true`
   - For MCP and the legacy CLI fallback, env-backed storage is the strongest path because the local tool can verify the env var exists before wallet creation.
 
+## EVM Wallet Bucket Model
+
+EVM wallets are buckets. The same wallet address holds assets across `mainnet`, `polygon-mainnet`, `base-mainnet`, and `sepolia`. The `network` field on a wallet is its **default/home chain**, not a hard binding.
+
+- Read paths: `GET /api/agent/wallets?includeBalances=true` returns native balance on the wallet's home chain. The dashboard separately shows per-chain ERC-20 indicators across all EVM chains.
+- Write paths: `POST /api/agent/transfer`, `/swap`, and `/approve` accept an optional `network` field on EVM wallets. Set it to operate on a non-default EVM chain. Omit it to use the wallet's home network.
+  - Example: a wallet whose home is `polygon-mainnet` can transfer USDC on Base by passing `{ "network": "base-mainnet", "token": "USDC", ... }`.
+  - Validation: `network` must be a known EVM network for EVM wallets. For Solana wallets, `network` must be omitted or match the wallet's cluster (Solana keypairs are cluster-bound).
+  - Errors: an unsupported or non-EVM network for an EVM wallet returns `400 network_mismatch` with the supported list.
+- Token resolution follows the operating network. `resolveToken("USDC", "base-mainnet")` returns the canonical Base USDC address, distinct from the Polygon or mainnet USDC entries.
+- Agent calls that omit `network` behave exactly as before (use the wallet's home).
+
 ## Polymarket Venue Flow (Agent API)
 
-- Polymarket execution is available only for EVM wallets on `polygon-mainnet`.
+- Polymarket on-chain execution targets `polygon-mainnet` under the hood, but any EVM-home wallet (mainnet, polygon-mainnet, base-mainnet) can be linked to Polymarket. The wallet's home network does not gate eligibility.
 - Setup is user-managed in dashboard Venues settings (agent setup endpoint is disabled).
 - Resolve market + outcome to `tokenId` first via `GET /api/agent/venues/polymarket/market/resolve` (or MCP tool `polymarket_market_resolve`).
 - Then place orders:

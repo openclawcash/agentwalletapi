@@ -12,7 +12,7 @@
 #   user-tag-set <userTag> [--yes]   Set global checkout user tag once (immutable after set)
 #   wallet <walletId|publicWalletId|walletLabel> [chain]   Get one wallet detail with balances
 #   create <label> [network] <passphraseEnvVar> [--yes]    Create a wallet (default network: sepolia)
-#   import <label> <network> [privateKey|-] [--yes]   Import wallet (network: mainnet|polygon-mainnet|solana-mainnet)
+#   import <label> <network> [privateKey|-] [--yes]   Import wallet (network: mainnet|polygon-mainnet|base-mainnet|solana-mainnet)
 #   transactions <walletId|publicWalletId> [chain]     List merged transaction history for a wallet
 #   balance <walletId|publicWalletId> [token] [chain]  Check balances for a wallet
 #   transfer <walletId|publicWalletId> <to> <amount> [token] [chain] [--yes]   Send native/token transfer
@@ -289,7 +289,7 @@ case "$COMMAND" in
         PASSPHRASE_ENV_VAR="$4"
         if [ -z "$LABEL" ] || [ -z "$PASSPHRASE_ENV_VAR" ]; then
             echo "Usage: agentwalletapi.sh create <label> [network] <passphraseEnvVar> [--yes]"
-            echo "  network options: sepolia | mainnet | solana-devnet | solana-testnet | solana-mainnet"
+            echo "  network options: sepolia | mainnet | polygon-mainnet | base-mainnet | solana-devnet | solana-testnet | solana-mainnet"
             echo "  Example:"
             echo "    export WALLET_EXPORT_PASSPHRASE_OPS='your-strong-passphrase'"
             echo "    agentwalletapi.sh create \"Ops Wallet\" sepolia WALLET_EXPORT_PASSPHRASE_OPS --yes"
@@ -324,7 +324,7 @@ case "$COMMAND" in
         PRIVATE_KEY="$4"
         if [ -z "$LABEL" ] || [ -z "$NETWORK" ]; then
             echo "Usage: agentwalletapi.sh import <label> <network> [privateKey|-] [--yes]"
-            echo "  network options: mainnet | polygon-mainnet | solana-mainnet"
+            echo "  network options: mainnet | polygon-mainnet | base-mainnet | solana-mainnet"
             echo "  pass '-' to read private key from stdin (recommended for automation)"
             exit 1
         fi
