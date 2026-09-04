@@ -6,11 +6,13 @@
 # Sensitive env var: AGENTWALLETAPI_KEY (in .env)
 #
 # Commands:
-#   skill-latest                Get latest skill version + zip/install metadata (public, no API key)
+#   skill-latest                Get latest skill version + install metadata (public, no API key)
 #   wallets                     List all wallets
 #   user-tag-get                Read global checkout user tag for this API key owner
-#   user-tag-set <userTag> [--yes]   Set global checkout user tag once (immutable after set)
+#   user-tag-set <userTag> [--yes]   Set global checkout user tag once (immutable after set; 3-8 lowercase chars: a-z, 0-9, ., _, -)
 #   wallet <walletId|publicWalletId|walletLabel> [chain]   Get one wallet detail with balances
+#   policies                    List governance policies for every wallet accessible to this API key
+#   policy <walletId|publicWalletId|walletLabel>   Get governance policies for one wallet
 #   create <label> [network] <passphraseEnvVar> [--yes]    Create a wallet (default network: sepolia)
 #   import <label> <network> [privateKey|-] [--yes]   Import wallet (network: mainnet|polygon-mainnet|base-mainnet|solana-mainnet)
 #   transactions <walletId|publicWalletId> [chain]     List merged transaction history for a wallet
@@ -278,6 +280,23 @@ case "$COMMAND" in
         if [ -n "$CHAIN" ]; then
             append_query_param URL "chain" "$CHAIN"
         fi
+        curl -s -H "X-Agent-Key: $AGENTWALLETAPI_KEY" \
+            "$URL" | pretty_print_json
+        ;;
+
+    policies)
+        curl -s -H "X-Agent-Key: $AGENTWALLETAPI_KEY" \
+            "$BASE_URL/api/agent/policies" | pretty_print_json
+        ;;
+
+    policy)
+        SELECTOR="$2"
+        if [ -z "$SELECTOR" ]; then
+            echo "Usage: agentwalletapi.sh policy <walletId|publicWalletId|walletLabel>"
+            exit 1
+        fi
+        URL="$BASE_URL/api/agent/policy"
+        append_wallet_selector_query URL "$SELECTOR"
         curl -s -H "X-Agent-Key: $AGENTWALLETAPI_KEY" \
             "$URL" | pretty_print_json
         ;;
@@ -1094,13 +1113,15 @@ case "$COMMAND" in
         echo "Usage: agentwalletapi.sh <command> [options]"
         echo ""
         echo "Commands:"
-        echo "  skill-latest                               Get latest skill version + zip/install metadata (public)"
+        echo "  skill-latest                               Get latest skill version + install metadata (public)"
         echo "  wallets                                    List all wallets"
         echo "  user-tag-get                               Read global checkout user tag"
-        echo "  user-tag-set <userTag> [--yes]            Set global checkout user tag once"
+        echo "  user-tag-set <userTag> [--yes]            Set global checkout user tag once (3-8 lowercase chars: a-z, 0-9, ., _, -)"
         echo "  wallet <walletId|publicWalletId|walletLabel> [chain]  Get one wallet detail with balances"
+        echo "  policies                                   List governance policies for every accessible wallet"
+        echo "  policy <walletId|publicWalletId|walletLabel>  Get governance policies for one wallet"
         echo "  create <label> [network] <passphraseEnvVar> [--yes]  Create wallet (default network: sepolia)"
-        echo "  import <label> <network> [privateKey] [--yes]      Import wallet (mainnet|polygon-mainnet|solana-mainnet)"
+        echo "  import <label> <network> [privateKey] [--yes]      Import wallet (mainnet|polygon-mainnet|base-mainnet|solana-mainnet)"
         echo "  transactions <walletId|publicWalletId> [chain]    List wallet transaction history"
         echo "  balance <walletId|publicWalletId> [token] [chain] Check balances"
         echo "  transfer <walletId|publicWalletId> <to> <amount> [token] [chain] [--yes]  Send native/token transfer"

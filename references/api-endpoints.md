@@ -10,11 +10,11 @@
 
 ## Security Notes
 
-- Start with read-only calls first (`wallets`, `wallet`, `balance`, `supported-tokens`), preferably on testnets.
+- Start with read-only calls first (`wallets`, `wallet`, `policy`, `balance`, `supported-tokens`), preferably on testnets.
 - Write actions (`create`, `import`, `transfer`, `swap`, `approve`, `polymarket-*`) are high-risk and should use explicit confirmation in the CLI (`--yes`).
 - `POST /api/agent/wallets/import` sends a private key to OpenclawCash for encrypted storage and managed execution.
 - Wallet import and wallet creation are disabled unless the API key has permission enabled in dashboard (`allowWalletImport`, `allowWalletCreation`).
-- API keys may also be scoped by chain (`all`/`evm`/`solana`) and by wallet (`all wallets` or a single wallet).
+- API keys may also be scoped by chain (`all`/`evm`/`solana`) and by wallet (`all` or a specific set of selected wallets).
 
 ## API Surfaces
 
@@ -32,23 +32,20 @@ Response:
 ```json
 {
   "skill": "agentwalletapi",
-  "version": "1.20.0",
+  "version": "1.26.0",
   "publishedAssets": {
     "skillMdUrl": "https://openclawcash.com/agentwalletapi/SKILL.md",
-    "latestZipUrl": "https://openclawcash.com/agentwalletapi/agentwalletapi-skill.zip",
-    "versionedZipUrl": "https://openclawcash.com/agentwalletapi/agentwalletapi-skill-1.20.0.zip",
+    "githubRepoUrl": "https://github.com/openclawcash/agentwalletapi",
     "setupScriptUrl": "https://openclawcash.com/agentwalletapi/scripts/setup.sh",
     "cliScriptUrl": "https://openclawcash.com/agentwalletapi/scripts/agentwalletapi.sh"
   },
   "installInstructions": {
     "targetDirectory": "<your-workspace>/skills/agentwalletapi",
     "steps": [
-      "Download https://openclawcash.com/agentwalletapi/agentwalletapi-skill.zip",
-      "Unzip the archive into <your-workspace>/skills/",
-      "Verify the final folder is exactly <your-workspace>/skills/agentwalletapi",
+      "git clone https://github.com/openclawcash/agentwalletapi <your-workspace>/skills/agentwalletapi",
       "Read <your-workspace>/skills/agentwalletapi/SKILL.md before running commands"
     ],
-    "agentPrompt": "Download https://openclawcash.com/agentwalletapi/agentwalletapi-skill.zip, unzip it into <your-workspace>/skills/, verify <your-workspace>/skills/agentwalletapi, then read <your-workspace>/skills/agentwalletapi/SKILL.md."
+    "agentPrompt": "git clone https://github.com/openclawcash/agentwalletapi into <your-workspace>/skills/agentwalletapi, then read <your-workspace>/skills/agentwalletapi/SKILL.md."
   }
 }
 ```
@@ -104,19 +101,19 @@ X-Agent-Key: occ_your_api_key
 Request:
 ```json
 {
-  "userTag": "studio-agent"
+  "userTag": "studio"
 }
 ```
 
 Response:
 ```json
 {
-  "userTag": "studio-agent"
+  "userTag": "studio"
 }
 ```
 
 Notes:
-- Tag format: lowercase letters/numbers with `.`, `_`, `-`, length 3-64.
+- Tag format: lowercase letters/numbers with `.`, `_`, `-`, length 3-8.
 - `PUT` returns `409 user_tag_locked` if already set.
 
 ## List Wallets
@@ -300,7 +297,6 @@ Response:
         "type": "daily_spending_limit",
         "config": { "amount": "100" },
         "createdAt": "2026-01-15T10:00:00.000Z",
-        "enabled": true,
         "usage": {
           "spent": "45.00",
           "limit": "100.00",
@@ -316,8 +312,10 @@ Response:
 
 Notes:
 - Returns hydrated policy data including current usage for spending limit policies.
-- Supports `daily_spending_limit`, `weekly_spending_limit`, and `monthly_spending_limit` types.
+- `usage` is populated for `daily_spending_limit`, `weekly_spending_limit`, and `monthly_spending_limit` types; other policy types return without a `usage` field.
 - Usage data shows `spent`, `limit`, `symbol`, `decimals`, and `window` (24h/week/month).
+- Full policy `type` list: `whitelist`, `spending_limit`, `daily_spending_limit`, `weekly_spending_limit`, `monthly_spending_limit`, `disallow_live_transactions`, `wallet_purpose`, `checkout_access`, `venue_access`, `max_open_escrows`, `trusted_counterparty_tags`.
+- A blocked write returns `403 policy_violation` with a `policyType` field naming which policy blocked the request.
 
 ## Get Policy
 
@@ -350,7 +348,6 @@ Response:
       "type": "daily_spending_limit",
       "config": { "amount": "100" },
       "createdAt": "2026-01-15T10:00:00.000Z",
-      "enabled": true,
       "usage": {
         "spent": "45.00",
         "limit": "100.00",
@@ -365,7 +362,6 @@ Response:
 
 Notes:
 - Requires exactly one wallet selector: `walletId`, `walletLabel`, or `walletAddress`.
-- Optional chain guard: `?chain=evm` or `?chain=solana`.
 
 ## Wallet Transaction History
 
@@ -727,7 +723,7 @@ The `metadata` field on checkout requests supports structured client data with v
 Schema constraints:
 - **Keys**: Max 64 characters, alphanumeric with `.`, `_`, `:`, `-`, `/`, spaces
 - **Values**: Max 280 characters (512 bytes), max 3 levels nesting, max 20 keys per object
-- **Sensitive keys** are automatically stripped: `apikey`, `internal`, `debug`, `server`, keys containing `secret` or `password`
+- Metadata is stored and returned as provided — no key is filtered or stripped. Do not put API keys, secrets, passwords, or other sensitive values in metadata.
 
 Values are normalized (trimmed, Unicode NFKC normalized) before storage.
 
@@ -1209,6 +1205,7 @@ Notes:
 - **sepolia**: Sepolia Testnet (test ETH, limited token selection: ETH, USDC, WETH, LINK)
 - **solana-mainnet**: Solana Mainnet (real SOL + SPL tokens)
 - **solana-devnet**: Solana Devnet (dev SOL + test SPL tokens)
+- **solana-testnet**: Solana Testnet (test SOL + test SPL tokens)
 
 EVM wallets are buckets: a wallet's `network` is its **default/home chain**, not a binding. The same wallet address is valid on every EVM chain. Pass an optional `network` field on `/api/agent/transfer`, `/api/agent/swap`, and `/api/agent/approve` to operate the wallet on a non-default EVM chain. Omit `network` to use the wallet's default. Solana wallets remain pinned to their cluster.
 

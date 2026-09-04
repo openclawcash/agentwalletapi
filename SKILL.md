@@ -41,7 +41,7 @@ This skill may also be referred to as `openclawcash`.
 
 ## Safety Model
 
-- Start with read-only calls (`wallets`, `wallet`, `balance`, `tokens`) on testnets first.
+- Start with read-only calls (`wallets`, `wallet`, `policy`, `balance`, `tokens`) on testnets first.
 - High-risk actions are gated:
   - API key permissions in dashboard (`allowWalletCreation`, `allowWalletImport`)
   - Explicit CLI confirmation (`--yes`) for write actions
@@ -77,9 +77,11 @@ If MCP is unavailable, use the included tool script to make API calls directly:
 bash scripts/agentwalletapi.sh skill-latest
 bash scripts/agentwalletapi.sh wallets
 bash scripts/agentwalletapi.sh user-tag-get
-bash scripts/agentwalletapi.sh user-tag-set my-agent-tag --yes
+bash scripts/agentwalletapi.sh user-tag-set studio --yes
 bash scripts/agentwalletapi.sh wallet Q7X2K9P
 bash scripts/agentwalletapi.sh wallet "Trading Bot"
+bash scripts/agentwalletapi.sh policies
+bash scripts/agentwalletapi.sh policy Q7X2K9P
 bash scripts/agentwalletapi.sh balance Q7X2K9P
 bash scripts/agentwalletapi.sh transactions Q7X2K9P
 bash scripts/agentwalletapi.sh tokens mainnet
@@ -184,6 +186,7 @@ Content-Type: application/json
 1a. `GET /api/public/tokenlist` - Token Lists v1 document covering every supported chain. Default `?extended=true` merges curated + Uniswap (EVM) + Jupiter (Solana). Pass `?extended=false` for curated only, `?chainId=<num>` to scope to one chain. No auth.
 2. `GET /api/agent/wallets` - Discover available wallets (id, label, address, network, chain). Optional `?includeBalances=true` adds native `balance` + `nativeSymbol`
 3. `GET /api/agent/wallet?walletId=...` or `?walletLabel=...` or `?walletAddress=...` - Fetch one wallet with native/token balances
+3a. `GET /api/agent/policies` - List governance policies for every wallet accessible to this API key. `GET /api/agent/policy?walletId=...` (or `walletLabel`/`walletAddress`) - Same, scoped to one wallet. Call before suggesting or executing a transfer/swap so the request stays inside configured limits.
 4. Optional wallet lifecycle actions:
    - `POST /api/agent/wallets/create` - Create a new wallet under API-key policy controls
    - `POST /api/agent/wallets/import` - Import a `mainnet`, `polygon-mainnet`, `base-mainnet`, or `solana-mainnet` wallet under API-key policy controls
@@ -197,7 +200,7 @@ Content-Type: application/json
    - `POST /api/agent/bridge/quote` - Quote a transfer between EVM chains (or EVM<->Solana for quote; Solana source-side execute is gated to a follow-up). `fromNetwork`, `fromToken`, `toNetwork`, `toToken`, `amountIn` (base units). Returns `quoteId`, `provider`, `bridgeName`, `amountOut`, `amountOutMin`, fee details, and `expiresAt` (~60s TTL).
    - `POST /api/agent/bridge/execute` - Execute a previously quoted bridge. Requires `Idempotency-Key` header. Returns `sourceTxHash`, `bridgeTxId`, and platform fee tx hash.
    - `GET /api/agent/bridge/status?bridgeTxId=...` - Look up status. States: `submitted`, `source_confirmed`, `destination_confirmed`, `completed`, `failed`.
-11. `GET /api/agent/user-tag` and `PUT /api/agent/user-tag` - Read/set the global checkout user tag (set is one-time / immutable once configured)
+11. `GET /api/agent/user-tag` and `PUT /api/agent/user-tag` - Read/set the global checkout user tag (set is one-time / immutable once configured; 3-8 lowercase characters: `a-z`, `0-9`, `.`, `_`, `-`)
 12. Optional checkout flow (escrow by global user tag):
    - MCP default: `checkout_fund` (tries `quick-pay`, falls back to `swap-and-pay` when needed)
    - `POST /api/agent/checkout/payreq` - Create pay request + escrow
@@ -282,6 +285,8 @@ Example:
 | `/api/public/tokenlist` | GET | No | Token Lists v1 document. `?extended=true` (default) merges curated + Uniswap + Jupiter. `?chainId=<num>` scopes to one chain |
 | `/api/agent/wallets` | GET | Yes | List wallets (discovery; optional `includeBalances=true` for native balances) |
 | `/api/agent/wallet` | GET | Yes | Get one wallet detail with native/token balances |
+| `/api/agent/policies` | GET | Yes | List governance policies for every wallet accessible to this API key |
+| `/api/agent/policy` | GET | Yes | Get governance policies for one wallet |
 | `/api/agent/wallets/create` | POST | Yes | Create a new API-key-managed wallet |
 | `/api/agent/wallets/import` | POST | Yes | Import a mainnet/polygon-mainnet/base-mainnet/solana-mainnet wallet via API key |
 | `/api/agent/transactions` | GET | Yes | List per-wallet transaction history |
@@ -291,7 +296,7 @@ Example:
 | `/api/agent/token-balance` | POST | Yes | Check balances |
 | `/api/agent/supported-tokens` | GET | Yes | List recommended common, well-known tokens per network |
 | `/api/agent/user-tag` | GET | Yes | Read the global checkout user tag for the API key owner |
-| `/api/agent/user-tag` | PUT | Yes | Set the global checkout user tag once (immutable after set) |
+| `/api/agent/user-tag` | PUT | Yes | Set the global checkout user tag once (immutable after set; 3-8 lowercase chars: `a-z`, `0-9`, `.`, `_`, `-`) |
 | `/api/agent/approve` | POST | Yes | Approve spender for ERC-20 token (EVM only) |
 | `/api/agent/bridge/quote` | POST | Yes | Quote cross-chain bridge transfer (LiFi-routed). Returns `quoteId`, `provider`, `bridgeName`, fee breakdown, `expiresAt` (~60s) |
 | `/api/agent/bridge/execute` | POST | Yes | Execute previously quoted bridge. Requires `Idempotency-Key` header |
@@ -443,21 +448,30 @@ Transfer responses include `requestedValueBaseUnits`, `adjustedValueBaseUnits`, 
 ## Error Codes
 
 - 200: Success
-- 400: Invalid input, insufficient funds, unknown token, or policy violation
+- 400: Invalid input, insufficient funds, or unknown token
 - 400 `chain_mismatch`: requested `chain` does not match the selected wallet
 - 400 `amount_below_min_transfer`: requested native transfer is below minimum transferable amount after fee/network preflight
 - 400 `insufficient_balance`: requested transfer + fees exceed available balance
 - 401: Missing/invalid API key
+- 403 `policy_violation`: request blocked by a wallet governance policy (see Policy Constraints below)
 - 404: Wallet not found
 - 500: Internal error (retry with corrected payload or reduced amount)
 
 ## Policy Constraints
 
-Wallets may have governance policies:
-- **Whitelist**: Only transfers to pre-approved addresses allowed
-- **Spending Limit**: Max value per transaction (configured per wallet policy)
+Call `GET /api/agent/policies` (all wallets) or `GET /api/agent/policy?walletId=...` (one wallet) to read active policies before suggesting or executing a write action. Policy `type` values:
 
-Violations return HTTP 401 with an explanation message.
+- **whitelist**: only transfers to pre-approved addresses allowed
+- **spending_limit**: max value per transaction
+- **daily_spending_limit** / **weekly_spending_limit** / **monthly_spending_limit**: rolling-window spend caps
+- **disallow_live_transactions**: blocks non-testnet execution
+- **wallet_purpose**: restricts what the wallet may be used for
+- **checkout_access**: gates Get Paid checkout usage
+- **venue_access**: gates venue (e.g. Polymarket) usage
+- **max_open_escrows**: caps concurrent open checkout escrows
+- **trusted_counterparty_tags**: restricts checkout counterparties by tag
+
+Violations return **HTTP 403** with `code: "policy_violation"` and a `policyType` field naming which policy blocked the request, plus an explanation message.
 
 ## Important Notes
 
