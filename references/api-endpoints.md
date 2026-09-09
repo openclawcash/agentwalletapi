@@ -625,6 +625,14 @@ Solana (Jupiter) request example:
 }
 ```
 
+Errors:
+- `400 invalid_quote_request` (`retryable: false`) — unknown token, invalid address, `tokenIn` equal to `tokenOut`, non-positive or malformed `amountIn`, or an amount under the router minimum. The request must change before retrying.
+- `503 no_route_or_liquidity` (`retryable: true`) — no DEX route or not enough pool liquidity for this pair/amount. Transient: retry the same request after a short delay, or adjust the amount. Do **not** treat this as a permanently unsupported pair.
+- `503 upstream_rpc_unavailable` (`retryable: true`) — upstream RPC/DEX timed out, refused the connection, or rate-limited. Retry with backoff.
+- `500 quote_failed` (`retryable: true`) — unclassified. Retry once, then vary pair/amount.
+
+Error responses include `details.reason` with a fixed value (`invalid_input`, `route_or_liquidity`, `upstream_unavailable`, `unclassified_quote_error`). Raw upstream router/RPC text is never returned.
+
 ## Execute Swap (DEX)
 
 ```
@@ -684,6 +692,11 @@ Solana (Jupiter) example:
   "slippage": 0.5
 }
 ```
+
+Errors:
+- `400 insufficient_token_balance` — wallet lacks `tokenIn` (payload shown above).
+- `400 invalid_swap_request` (`retryable: false`) — the swap parameters themselves are unusable (unknown token, invalid address, same token in and out, bad amount).
+- `500 swap_failed` (`retryable: true`) — temporary DEX execution or routing issue, **including a pair that cannot currently be routed or lacks liquidity**. Request a fresh quote, then retry with a lower amount or higher slippage.
 
 ## Checkout & Escrow (Agent API)
 

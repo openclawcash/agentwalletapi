@@ -5,7 +5,7 @@ license: Proprietary
 compatibility: Requires network access to https://openclawcash.com
 metadata:
   author: agentwalletapi
-  version: "1.26.0"
+  version: "1.27.0"
   required_env_vars:
     - AGENTWALLETAPI_KEY
   optional_env_vars:
@@ -447,6 +447,27 @@ Transfer responses include `requestedValueBaseUnits`, `adjustedValueBaseUnits`, 
 
 ## Error Codes
 
+Every error response carries a machine-readable envelope:
+
+```json
+{
+  "code": "no_route_or_liquidity",
+  "message": "No viable DEX route for this pair/amount right now.",
+  "what_happened": "The quote engine could not find a usable route or sufficient liquidity.",
+  "what_to_do": "Retry shortly, or adjust the pair/amount and try again.",
+  "retryable": true,
+  "details": { "reason": "route_or_liquidity" }
+}
+```
+
+**Branch on `retryable`, not on the HTTP status.** `retryable: true` means the same
+request may succeed later and is safe to repeat after a short backoff.
+`retryable: false` means the request must change before retrying — repeating it
+unchanged will fail the same way.
+
+`details` contains fixed, enumerated values only. Upstream RPC/DEX error text is
+never returned; it is recorded server-side for support to inspect.
+
 - 200: Success
 - 400: Invalid input, insufficient funds, or unknown token
 - 400 `chain_mismatch`: requested `chain` does not match the selected wallet
@@ -456,6 +477,20 @@ Transfer responses include `requestedValueBaseUnits`, `adjustedValueBaseUnits`, 
 - 403 `policy_violation`: request blocked by a wallet governance policy (see Policy Constraints below)
 - 404: Wallet not found
 - 500: Internal error (retry with corrected payload or reduced amount)
+- 503: Temporary — the request was well-formed but could not be served right now. Always `retryable: true`.
+
+### Swap and quote errors
+
+A pair with no liquidity is a **temporary** condition, not a malformed request.
+It returns `503` with `retryable: true`; keep the same parameters and retry after
+a short delay rather than discarding the pair.
+
+- 400 `invalid_quote_request` (`retryable: false`): unknown token, invalid address, `tokenIn` equal to `tokenOut`, a non-positive or malformed `amountIn`, or an amount below the router's minimum. Change the request before retrying.
+- 503 `no_route_or_liquidity` (`retryable: true`): no DEX route, insufficient pool liquidity, or the output amount would fall below the pool's minimum. Retry shortly, or adjust the amount.
+- 503 `upstream_rpc_unavailable` (`retryable: true`): an upstream RPC or DEX API timed out, refused the connection, or rate-limited us. Retry after a short backoff.
+- 500 `quote_failed` (`retryable: true`): unclassified quote failure. Retry once; if it persists, try a different pair or amount.
+- 400 `invalid_swap_request` (`retryable: false`) on `POST /api/agent/swap`: the swap parameters themselves are unusable.
+- 500 `swap_failed` (`retryable: true`) on `POST /api/agent/swap`: temporary DEX execution or routing issue, including a pair that cannot currently be routed. Request a fresh quote, then retry with a lower amount or higher slippage.
 
 ## Policy Constraints
 
