@@ -5,7 +5,7 @@ license: Proprietary
 compatibility: Requires network access to https://openclawcash.com
 metadata:
   author: agentwalletapi
-  version: "1.27.0"
+  version: "1.27.1"
   required_env_vars:
     - AGENTWALLETAPI_KEY
   optional_env_vars:
@@ -157,6 +157,10 @@ If requests fail because of host/URL issues, use this recovery flow:
    ```
    AGENTWALLETAPI_URL=https://openclawcash.com
    ```
+   `AGENTWALLETAPI_URL` is only ever allowed to be `https://openclawcash.com` or an
+   `https://<subdomain>.openclawcash.com` host — the CLI script refuses to run and exits
+   with an error for any other value, so `X-Agent-Key` can never be sent to an untrusted
+   host even if this env var is tampered with.
 3. Retry a simple read call first:
    ```bash
    bash scripts/agentwalletapi.sh wallets
@@ -171,6 +175,11 @@ The API key is loaded from the `.env` file in this skill folder. For direct HTTP
 X-Agent-Key: occ_your_api_key
 Content-Type: application/json
 ```
+
+`X-Agent-Key` is sent only to `https://openclawcash.com` (or an `https://<subdomain>.openclawcash.com`
+host). The bundled `scripts/agentwalletapi.sh` validates `AGENTWALLETAPI_URL` against this allowlist
+before every request and refuses to run otherwise, so the key cannot be redirected to another host
+by an env var override.
 
 ## API Surfaces
 

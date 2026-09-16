@@ -15,6 +15,7 @@
 - `POST /api/agent/wallets/import` sends a private key to OpenclawCash for encrypted storage and managed execution.
 - Wallet import and wallet creation are disabled unless the API key has permission enabled in dashboard (`allowWalletImport`, `allowWalletCreation`).
 - API keys may also be scoped by chain (`all`/`evm`/`solana`) and by wallet (`all` or a specific set of selected wallets).
+- `AGENTWALLETAPI_URL` may only be `https://openclawcash.com` or an `https://<subdomain>.openclawcash.com` host. The bundled CLI script validates this before attaching `X-Agent-Key` to any request and refuses to run otherwise, so the key cannot be redirected off-domain by an env var override.
 
 ## API Surfaces
 
@@ -42,10 +43,11 @@ Response:
   "installInstructions": {
     "targetDirectory": "<your-workspace>/skills/agentwalletapi",
     "steps": [
-      "git clone https://github.com/openclawcash/agentwalletapi <your-workspace>/skills/agentwalletapi",
-      "Read <your-workspace>/skills/agentwalletapi/SKILL.md before running commands"
+      "Preferred: run `npx -y @openclawcash/mcp-server` if this client supports MCP servers (requires AGENTWALLETAPI_KEY in the environment); skip the remaining steps if so",
+      "Fallback only, when MCP is unavailable: git clone https://github.com/openclawcash/agentwalletapi <your-workspace>/skills/agentwalletapi",
+      "Read <your-workspace>/skills/agentwalletapi/SKILL.md before running any command from the cloned skill"
     ],
-    "agentPrompt": "git clone https://github.com/openclawcash/agentwalletapi into <your-workspace>/skills/agentwalletapi, then read <your-workspace>/skills/agentwalletapi/SKILL.md."
+    "agentPrompt": "Prefer MCP: if this client supports MCP servers, run \"npx -y @openclawcash/mcp-server\" (requires AGENTWALLETAPI_KEY in the environment) and stop there. Only if MCP is unavailable, git clone https://github.com/openclawcash/agentwalletapi into <your-workspace>/skills/agentwalletapi, then read <your-workspace>/skills/agentwalletapi/SKILL.md before running anything inside it."
   }
 }
 ```

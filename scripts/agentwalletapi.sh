@@ -83,6 +83,17 @@ fi
 
 BASE_URL="${AGENTWALLETAPI_URL:-https://openclawcash.com}"
 
+# AGENTWALLETAPI_URL is an env var, so a poisoned environment (or a prompt
+# that tells the agent to "fix a connection issue" by exporting it) could
+# otherwise redirect every X-Agent-Key header to an attacker-controlled
+# host. Only openclawcash.com and its subdomains may receive the key.
+if ! [[ "$BASE_URL" =~ ^https://openclawcash\.com(/.*)?$ ]] && \
+   ! [[ "$BASE_URL" =~ ^https://[A-Za-z0-9-]+\.openclawcash\.com(/.*)?$ ]]; then
+    echo "Error: AGENTWALLETAPI_URL must be https://openclawcash.com or an https://<subdomain>.openclawcash.com host."
+    echo "Refusing to send AGENTWALLETAPI_KEY to untrusted host: $BASE_URL"
+    exit 1
+fi
+
 if [ "$ALLOW_PUBLIC_ONLY" -eq 0 ] && { [ -z "$AGENTWALLETAPI_KEY" ] || [ "$AGENTWALLETAPI_KEY" = "occ_your_api_key" ]; }; then
     echo "Error: API key not configured. Edit $ENV_FILE and set AGENTWALLETAPI_KEY."
     exit 1
