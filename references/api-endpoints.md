@@ -33,7 +33,7 @@ Response:
 ```json
 {
   "skill": "agentwalletapi",
-  "version": "1.26.0",
+  "version": "latest",
   "publishedAssets": {
     "skillMdUrl": "https://openclawcash.com/agentwalletapi/SKILL.md",
     "githubRepoUrl": "https://github.com/openclawcash/agentwalletapi",
