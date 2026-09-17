@@ -1,5 +1,7 @@
 # OpenClawCash AgentWalletAPI skill
 
+[![skills.sh](https://skills.sh/b/openclawcash/agentwalletapi)](https://skills.sh/openclawcash/agentwalletapi)
+
 Agent skill for OpenClawCash-managed wallets on EVM and Solana: list wallets, check balances, send
 native and token transfers, run DEX swaps, drive Get Paid checkout escrow, and operate Polymarket and
 YieldWolf Casino venues — all through the [OpenClawCash agent API](https://openclawcash.com).
