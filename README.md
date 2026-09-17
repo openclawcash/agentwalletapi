@@ -4,20 +4,24 @@ Agent skill for OpenClawCash-managed wallets on EVM and Solana: list wallets, ch
 native and token transfers, run DEX swaps, drive Get Paid checkout escrow, and operate Polymarket and
 YieldWolf Casino venues — all through the [OpenClawCash agent API](https://openclawcash.com).
 
-The skill is a plain `SKILL.md` (agentskills.io standard) plus a curl-based script, so any client that
-reads skills can use it. Also referred to as `openclawcash`.
+It is a plain **`SKILL.md`** in the `agentskills.io` standard plus a curl-based script, so it works with
+any skill-capable agent — no client-specific code. Also referred to as `openclawcash`.
 
 ## Install
+
+Drop the folder anywhere your agent loads skills from, or use your client's skill installer:
 
 ```bash
 # Hermes Agent
 hermes skills install openclawcash/agentwalletapi
-
-# or add this repo as a skill source
 hermes skills tap add openclawcash/agentwalletapi
+
+# Claude Code / other clients: copy into the client's skills directory
+git clone https://github.com/openclawcash/agentwalletapi ~/.claude/skills/agentwalletapi
 ```
 
-Other clients: copy this folder into your skills directory, or read `SKILL.md` directly.
+Any agent that can read a file can use it: point it at `SKILL.md` and it has the full workflow, endpoint
+table, safety model, and CLI fallback. Nothing in this repo depends on a specific agent runtime.
 
 **If your client supports MCP, prefer the MCP server** — tools, schemas, and results arrive structured:
 
