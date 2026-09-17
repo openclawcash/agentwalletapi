@@ -11,6 +11,7 @@
 #   user-tag-get                Read global checkout user tag for this API key owner
 #   user-tag-set <userTag> [--yes]   Set global checkout user tag once (immutable after set; 3-8 lowercase chars: a-z, 0-9, ., _, -)
 #   wallet <walletId|publicWalletId|walletLabel> [chain]   Get one wallet detail with balances
+#   rename <walletId|publicWalletId> <newLabel>   Rename a wallet (update its label)
 #   policies                    List governance policies for every wallet accessible to this API key
 #   policy <walletId|publicWalletId|walletLabel>   Get governance policies for one wallet
 #   create <label> [network] <passphraseEnvVar> [--yes]    Create a wallet (default network: sepolia)
@@ -293,6 +294,24 @@ case "$COMMAND" in
         fi
         curl -s -H "X-Agent-Key: $AGENTWALLETAPI_KEY" \
             "$URL" | pretty_print_json
+        ;;
+
+    rename)
+        SELECTOR="$2"
+        NEW_LABEL="$3"
+        if [ -z "$SELECTOR" ] || [ -z "$NEW_LABEL" ]; then
+            echo "Usage: agentwalletapi.sh rename <walletId|publicWalletId> <newLabel>"
+            exit 1
+        fi
+        json_escape_var NEW_LABEL_ESC "$NEW_LABEL"
+        BODY="{"
+        append_wallet_id_json_field BODY "$SELECTOR"
+        BODY="$BODY, \"label\": \"$NEW_LABEL_ESC\"}"
+        curl -s -X PATCH \
+            -H "X-Agent-Key: $AGENTWALLETAPI_KEY" \
+            -H "Content-Type: application/json" \
+            -d "$BODY" \
+            "$BASE_URL/api/agent/wallet" | pretty_print_json
         ;;
 
     policies)
@@ -1129,6 +1148,7 @@ case "$COMMAND" in
         echo "  user-tag-get                               Read global checkout user tag"
         echo "  user-tag-set <userTag> [--yes]            Set global checkout user tag once (3-8 lowercase chars: a-z, 0-9, ., _, -)"
         echo "  wallet <walletId|publicWalletId|walletLabel> [chain]  Get one wallet detail with balances"
+        echo "  rename <walletId|publicWalletId> <newLabel>  Rename a wallet (update its label)"
         echo "  policies                                   List governance policies for every accessible wallet"
         echo "  policy <walletId|publicWalletId|walletLabel>  Get governance policies for one wallet"
         echo "  create <label> [network] <passphraseEnvVar> [--yes]  Create wallet (default network: sepolia)"
@@ -1178,6 +1198,7 @@ case "$COMMAND" in
         echo "  agentwalletapi.sh import 'Poly Ops' polygon-mainnet --yes"
         echo "  agentwalletapi.sh transactions 2"
         echo "  agentwalletapi.sh balance 2"
+        echo "  agentwalletapi.sh rename 2 'Trading Bot v2'"
         echo "  agentwalletapi.sh transfer 2 0xRecipient 0.01 --yes"
         echo "  agentwalletapi.sh transfer 2 0xRecipient 100 USDC --yes"
         echo "  agentwalletapi.sh tokens mainnet"

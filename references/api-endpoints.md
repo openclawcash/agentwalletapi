@@ -202,6 +202,55 @@ Response:
 
 Note: Use `GET /api/agent/policies` or `GET /api/agent/policy` to retrieve wallet policies.
 
+## Rename Wallet
+
+```
+PATCH /api/agent/wallet
+Content-Type: application/json
+X-Agent-Key: occ_your_api_key
+```
+
+Request (select the wallet with exactly one of `walletId`, `walletLabel` (its current label), or `walletAddress`):
+```json
+{ "walletId": "W123ABC", "label": "Trading Bot v2" }
+```
+
+Response:
+```json
+{
+  "id": "W123ABC",
+  "label": "Trading Bot v2",
+  "address": "0x14ae8d93...",
+  "network": "sepolia",
+  "chain": "evm"
+}
+```
+
+Notes:
+- `label`: 1-32 characters using letters, numbers, spaces, and `. _ - ( ) #`, starting with a letter or number. No emoji or other non-ASCII, no digits-only labels, no embedded addresses. Repeated spaces are collapsed. Must not match (case-insensitive) another live wallet's label (`409 wallet_label_taken`) or any of your wallet IDs (`400 invalid_wallet_label`). The same rules apply to create, import, and venue provisioning.
+- Metadata only: no funds move and no extra API key permission is required. The wallet must be within the key's wallet and chain scope.
+- Rate limited per API key (10 renames per 10 minutes by default), separately from create/import. Exceeding it returns `429 wallet_write_rate_limited` with `Retry-After`.
+- Errors: `400 validation_error`, `400 invalid_wallet_label`, `401` (missing/invalid key), `404 wallet_not_found`, `409 wallet_label_taken`, `409 wallet_label_ambiguous`, `429 wallet_write_rate_limited`.
+
+### Duplicate labels on older accounts
+
+Some accounts created before label rules existed have wallets that share a label. Selecting one of them with `walletLabel` on any endpoint returns:
+
+```json
+{
+  "code": "wallet_label_ambiguous",
+  "message": "More than one wallet on this account uses this label, so no wallet was selected.",
+  "retryable": false,
+  "details": {
+    "matchingWalletIds": ["W123ABC", "W456DEF"],
+    "renameEndpoint": "PATCH /api/agent/wallet",
+    "renameMcpTool": "wallet_rename"
+  }
+}
+```
+
+Recover by retrying with `walletId`, then asking your human which wallet should get a new unique label and renaming it here. `details.matchingWalletIds` only lists wallets your API key is allowed to use.
+
 ## Create Wallet (Agent API)
 
 ```
