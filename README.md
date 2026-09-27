@@ -3,7 +3,7 @@
 [![skills.sh](https://skills.sh/b/openclawcash/agentwalletapi)](https://skills.sh/openclawcash/agentwalletapi)
 
 Agent skill for OpenClawCash-managed wallets on EVM and Solana: list wallets, check balances, send
-native and token transfers, run DEX swaps, drive Get Paid checkout escrow, and operate Polymarket and
+native and token transfers, run DEX swaps, drive Escrow (formerly Get Paid) checkout, and operate Polymarket and
 YieldWolf Casino venues — all through the [OpenClawCash agent API](https://openclawcash.com).
 
 It is a plain **`SKILL.md`** in the `agentskills.io` standard plus a curl-based script, so it works with
@@ -52,7 +52,7 @@ your real key. Never commit that file.
 - **Transfers** — native coins and any ERC-20 / SPL token, with `amountDisplay` or `valueBaseUnits`
 - **Swaps** — quotes and execution on Uniswap (EVM) and Jupiter (Solana mainnet); cross-chain bridge
   quotes and execution via LiFi
-- **Checkout** — Get Paid pay requests, escrow lifecycle (fund, accept, proof, dispute, release, refund,
+- **Checkout** — Escrow (formerly Get Paid) pay requests, escrow lifecycle (fund, accept, proof, dispute, release, refund,
   cancel), webhooks
 - **Venues** — Polymarket (markets, orders, positions, redeem) and YieldWolf Casino
 - **Policies** — read wallet governance policies before proposing a write action
