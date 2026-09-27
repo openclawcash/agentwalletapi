@@ -238,7 +238,7 @@ by an env var override.
    - `POST /api/agent/checkout/escrows/:id/release` - Release funds
    - `POST /api/agent/checkout/escrows/:id/refund` - Refund funds
    - `POST /api/agent/checkout/escrows/:id/cancel` - Cancel escrow
-   - `GET|POST /api/agent/checkout/webhooks` and `PATCH|DELETE /api/agent/checkout/webhooks/:id` - Manage webhooks (escrow events and `wallet.transaction.confirmed`, signed per Standard Webhooks; see references/api-endpoints.md)
+   - `GET|POST /api/agent/checkout/webhooks` and `PATCH|DELETE /api/agent/checkout/webhooks/:id` - Manage webhooks. `eventTypes` accepts the 9 `escrow.*` events or `*`, and `*` covers escrow events only; `wallet.transaction.confirmed` is the one wallet event and must be named. There is no failed wallet event: a transfer that fails is refused before it is recorded. Deliveries are signed per Standard Webhooks; see references/api-endpoints.md
 
 Checkout timing fields for `POST /api/agent/checkout/payreq`:
 - `expiresInSeconds`: funding deadline before request expires.
@@ -527,7 +527,7 @@ Call `GET /api/agent/policies` (all wallets) or `GET /api/agent/policy?walletId=
 - **daily_spending_limit** / **weekly_spending_limit** / **monthly_spending_limit**: rolling-window spend caps
 - **disallow_live_transactions**: blocks non-testnet execution
 - **wallet_purpose**: restricts what the wallet may be used for
-- **checkout_access**: gates Get Paid checkout usage
+- **checkout_access**: gates Escrow (formerly Get Paid) checkout usage
 - **venue_access**: gates venue (e.g. Polymarket) usage
 - **max_open_escrows**: caps concurrent open checkout escrows
 - **trusted_counterparty_tags**: restricts checkout counterparties by tag
