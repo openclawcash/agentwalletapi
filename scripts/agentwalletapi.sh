@@ -69,8 +69,26 @@ if [ "$COMMAND" = "skill-latest" ]; then
     ALLOW_PUBLIC_ONLY=1
 fi
 
+# Read KEY=value lines from the .env file WITHOUT executing it: only the two names this skill uses
+# are accepted, everything else (comments, other names, command substitutions) is ignored.
+load_env_file() {
+    local line key val
+    while IFS= read -r line || [ -n "$line" ]; do
+        case "$line" in ''|'#'*) continue ;; esac
+        key="${line%%=*}"
+        val="${line#*=}"
+        key="${key#export }"
+        case "$key" in
+            AGENTWALLETAPI_KEY|AGENTWALLETAPI_URL) ;;
+            *) continue ;;
+        esac
+        val="${val%\"}"; val="${val#\"}"; val="${val%\'}"; val="${val#\'}"
+        printf -v "$key" '%s' "$val"
+    done < "$1"
+}
+
 if [ -f "$ENV_FILE" ]; then
-    source "$ENV_FILE"
+    load_env_file "$ENV_FILE"
 elif [ "$ALLOW_PUBLIC_ONLY" -eq 0 ]; then
     echo "Error: .env file not found. Run setup first:"
     echo "  bash $SKILL_DIR/scripts/setup.sh"
