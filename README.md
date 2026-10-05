@@ -28,7 +28,7 @@ table, safety model, and CLI fallback. Nothing in this repo depends on a specifi
 **If your client supports MCP, prefer the MCP server** — tools, schemas, and results arrive structured:
 
 ```bash
-npx -y @openclawcash/mcp-server
+npx -y @openclawcash/mcp-server@0.1.27
 ```
 
 MCP and the bundled CLI script call the same agent API; they are two access paths, not two products.
