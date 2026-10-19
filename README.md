@@ -48,7 +48,7 @@ or the REST API. Full endpoint reference: [`references/api-endpoints.md`](refere
 **If your client supports MCP, use the MCP server.** Tools, schemas and results arrive structured:
 
 ```bash
-npx -y @openclawcash/mcp-server@0.1.28
+npx -y @openclawcash/mcp-server@0.1.29
 ```
 
 Otherwise install this skill:
