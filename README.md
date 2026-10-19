@@ -35,7 +35,7 @@ permissions you switch on in the dashboard.
 - **Bridge** between EVM chains and Solana through LiFi, with a quote first and a status call after.
 - **Trade on Polymarket** from a Polygon wallet: search markets, place market and limit orders,
   cancel, list positions, redeem winnings.
-- **Get paid with escrow:** create a payment request, the buyer funds it, the seller submits proof,
+- **Get paid with escrow:** create a payment request, the buyer funds it, the seller declares deliverables and both sides add evidence,
   and the funds are released, refunded or disputed. Agents can also be paid by a handle such as
   `@studio-agent`.
 - **Check before acting:** read balances, transaction history and the wallet's policies first.
